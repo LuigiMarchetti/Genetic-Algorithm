@@ -17,32 +17,31 @@ def fitness(pop):
     :param pop: numpy.ndarray: 2D array where each row is an individual representing a tour.
     :return: numpy.ndarray: 1D array containing the fitness (distance) of each individual.
     """
-    Npop, Ncidades = pop.shape
+    Npop, Ncities = pop.shape
     tour = np.hstack((pop, pop[:, [0]]))  # Add the first city to the end of the tour
-    dcidade = np.zeros((Ncidades, Ncidades))  # Distance matrix
-    for i in range(Ncidades):
-        for j in range(Ncidades):
-            dcidade[i, j] = np.sqrt((x[i] - x[j]) ** 2 + (y[i] - y[j]) ** 2)  # Euclidean distance between cities
+    dcity = np.zeros((Ncities, Ncities))  # Distance matrix
+    for i in range(Ncities):
+        for j in range(Ncities):
+            dcity[i, j] = np.sqrt((x[i] - x[j]) ** 2 + (y[i] - y[j]) ** 2)  # Euclidean distance between cities
 
     dist = np.zeros(Npop)  # Array to store distances for each individual
     for i in range(Npop):
-        for j in range(Ncidades):
-            dist[i] += dcidade[tour[i, j], tour[i, j + 1]]  # Calculate total distance for each individual
+        for j in range(Ncities):
+            dist[i] += dcity[tour[i, j], tour[i, j + 1]]  # Calculate total distance for each individual
     return dist
-
 
 def get_population_ordered(dist_array):
     """
-    Identifies the ten best individuals from the generation based on fitness values.
+    Identifies the best individuals from the generation based on fitness values.
 
     :param dist_array: numpy.ndarray: Array of fitness values for the population.
-    :return: list[int]: Indices of the ten best individuals.
+    :return: list[int]: Indices of the best individuals.
     """
     best_of_generation = []
     for i in range(20):
         distance = sys.maxsize
         position_of_best = -1
-        for j in range(1, len(dist_array)):  # Starts at 1 to avoid the first city as it's fixed
+        for j in range(0, len(dist_array)):
             if dist_array[j] < distance and j not in best_of_generation:
                 distance = dist_array[j]
                 position_of_best = j
@@ -123,16 +122,20 @@ def check_best_solution(population, best_of_generation, dist_array):
 
 def get_new_generation_parents(population, dist_array):
     """
-    Selects new parents using a roulette wheel selection based on fitness values.
+    Selects new parents using inverse fitness roulette wheel selection.
+    Better individuals (lower distance) have higher chances of being selected.
 
     :param population: numpy.ndarray: Current population of individuals.
     :param dist_array: numpy.ndarray: Fitness values for the population.
     :return: list[numpy.ndarray]: List of selected parents.
     """
-    total_fitness = sum(dist_array)
+    # Calculate inverse fitness (1/distance), the lower, the better
+    inverse_dist_array = [1 / f for f in dist_array]
+    total_fitness = sum(inverse_dist_array)
     roulette = [0]  # Initialize roulette wheel with zero
+
     for i in range(len(population)):
-        probability_of_parent = dist_array[i] / total_fitness
+        probability_of_parent = inverse_dist_array[i] / total_fitness
         roulette.append(roulette[i] + probability_of_parent)
 
     parents = []
@@ -167,8 +170,8 @@ def mutate_generation(new_generation):
     :return: list[numpy.ndarray]: List of mutated individuals.
     """
     for i in range(len(new_generation)):
-        position1 = random.randint(1, 19)
-        position2 = random.randint(1, 19)
+        position1 = random.randint(0, 19)
+        position2 = random.randint(0, 19)
         new_generation[i][position1], new_generation[i][position2] = new_generation[i][position2], new_generation[i][position1]
     return new_generation
 
@@ -186,10 +189,9 @@ def genetic_algorithm(population):
     parents = get_new_generation_parents(population, dist_array)  # Select parents for crossover
 
     best_of_last_generation = select_half_the_population(population, generation_ordered)  # Select top half of the population
-    new_child = cycle_crossing_over(parents)  # Perform crossover to generate offspring
-    new_generation = np.vstack((best_of_last_generation, new_child))  # Combines best individuals with new offspring
-
-    new_generation = mutate_generation(new_generation)  # Perform mutation on the new generation
+    new_children = cycle_crossing_over(parents)  # Perform crossover to generate offspring
+    mutated_children = mutate_generation(new_children)  # Perform mutation on the new offspring
+    new_generation = np.vstack((best_of_last_generation, mutated_children))  # Combines best individuals with mutated offspring
 
     return np.array(new_generation)
 
@@ -198,14 +200,14 @@ def creates_initial_generation(total_population, total_cities):
     """
     Creates the initial generation for a genetic algorithm.
 
-    Each individual in the generation is a permutation of city indices,
-    with the starting point (index 0) inserted at the beginning.
+    Each individual in the generation is a permutation of city indices.
 
     :param total_population: int: Number of cities in each individual's route.
     :param total_cities: int: Number of individuals in the population.
     :return: numpy.ndarray: A 2D array where each row represents an individual's route.
     """
-    return np.array([np.insert(np.random.permutation(np.arange(1, total_population)), 0, 0) for _ in range(total_cities)])
+    # Changed to create pure random permutations without forced starting point
+    return np.array([np.random.permutation(np.arange(0, total_population)) for _ in range(total_cities)])
 
 
 def log_data_beautify(array):
